@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Calculadora de potência, ganho e perdas para enlaces DWDM Padtec.">
+  <title>DWDM FieldCalc</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="route.css">
+  <link rel="stylesheet" href="v2.css">
+  <link rel="stylesheet" href="capacity.css">
+  <link rel="stylesheet" href="bidirectional.css">
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div><h1>DWDM <strong>FieldCalc</strong></h1><p>Potência, ganho e balanço óptico em campo</p></div>
+    <div class="mode" aria-label="Modo de trabalho">
+      <button class="active" data-mode="Ativação">Nova ativação</button>
+      <button data-mode="Revisão">Revisar enlace</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="status-strip" aria-live="polite">
+      <div><span class="status-dot" id="statusDot"></span><div><small>DIAGNÓSTICO DO TRECHO</small><strong id="overallStatus">Preencha os dados do enlace</strong></div></div>
+      <p id="actionText">Os valores de referência serão calculados automaticamente.</p>
+    </section>
+
+    <div class="workspace">
+      <form id="calculator" class="input-column" novalidate>
+        <section class="panel">
+          <div class="panel-title"><span>01</span><div><h2>Identificação e canais</h2><p>Dados básicos do trecho em análise</p></div></div>
+          <div class="form-grid">
+            <label class="wide">Trecho / circuito<input id="spanName" placeholder="Ex.: POP-A → POP-B / sentido Leste"></label>
+            <label>Ponto A / origem<input id="origin" placeholder="POP-A"></label>
+            <label>Ponto B / destino<input id="destination" placeholder="POP-B"></label>
+            <label>Data do levantamento<input id="reportDate" type="date"></label>
+            <label>Capacidade nominal<input value="40 canais" disabled></label>
+            <label>Canais ativos<input id="channels" type="text" inputmode="numeric" value="8" required><small>De 1 a 40 canais</small><em class="field-error" id="channelsError"></em></label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title"><span>02</span><div><h2>Amplificadores</h2><p>Selecione o modelo e o estágio de cada ponta</p></div></div>
+          <div class="amp-grid">
+            <div class="amp-card"><div class="amp-tag">TX / BOOSTER</div><label>Modelo de saída<select id="txModel"></select></label><div class="model-spec" id="txSpec"></div></div>
+            <div class="amp-card"><div class="amp-tag cyan">RX / PRÉ-AMPLIFICADOR</div><label>Modelo de recepção<select id="rxModel"></select></label><div class="model-spec" id="rxSpec"></div></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title"><span>03</span><div><h2>Fibra do trecho</h2><p>Informe somente a distância entre o Ponto A e o Ponto B</p></div></div>
+          <div class="form-grid">
+            <label>Distância da fibra (km)<input id="distance" type="text" inputmode="decimal" value="60"><em class="field-error" id="distanceError"></em></label>
+            <label>Atenuação esperada<input value="0,30 dB/km (pior cenário)" disabled></label>
+          </div>
+        </section>
+
+        <section class="panel measurements">
+          <div class="panel-title"><span>04</span><div><h2>Atenuação da fibra — dois sentidos</h2><p>Informe somente RX IN e TX OUT medidos em cada local</p></div></div>
+          <div class="fiber-entry-grid">
+            <div class="fiber-site"><div class="endpoint-title"><span>A</span><div><strong id="fiberPointALabel">Ponto A</strong><small>Local A</small></div></div><div class="endpoint-inputs"><label><span>RX IN · PONTO A</span><input id="mRxInA" type="text" inputmode="decimal" placeholder="— dBm"></label><label><span>TX OUT · PONTO A</span><input id="mLineOut" type="text" inputmode="decimal" placeholder="— dBm"></label></div></div>
+            <div class="fiber-site"><div class="endpoint-title cyan-title"><span>B</span><div><strong id="fiberPointBLabel">Ponto B</strong><small>Local B</small></div></div><div class="endpoint-inputs"><label><span>RX IN · PONTO B</span><input id="mLineIn" type="text" inputmode="decimal" placeholder="— dBm"></label><label><span>TX OUT · PONTO B</span><input id="mTxOutB" type="text" inputmode="decimal" placeholder="— dBm"></label></div></div>
+          </div>
+          <div class="fiber-results">
+            <article id="fiberABCard"><div><small id="fiberABLabel">A → B</small><strong id="fiberLossAB">Aguardando medições</strong></div><div><span id="fiberDeltaAB">TX OUT A − RX IN B</span><em id="fiberDbKmAB">—</em></div></article>
+            <article id="fiberBACard"><div><small id="fiberBALabel">B → A</small><strong id="fiberLossBA">Aguardando medições</strong></div><div><span id="fiberDeltaBA">TX OUT B − RX IN A</span><em id="fiberDbKmBA">—</em></div></article>
+          </div>
+          <p class="direction-note">A referência esperada continua sendo distância × 0,30 dB/km. Valores negativos na diferença representam margem favorável.</p>
+        </section>
+
+        <section class="panel amp-measurements">
+          <div class="panel-title"><span>05</span><div><h2>Medições dos amplificadores</h2><p>Complete DATA IN no TX e DATA OUT no RX para validar o sentido Ponto A → Ponto B</p></div></div>
+          <div class="field-route compact-route">
+            <div class="endpoint-block"><div class="endpoint-title"><span>A</span><div><strong id="pointALabel">Ponto A</strong><small>Amplificador de transmissão</small></div></div><label><span>DATA IN · PONTO A</span><input id="mDataIn" type="text" inputmode="decimal" placeholder="— dBm"></label><small class="shared-reading">TX OUT A informado na etapa 04.</small></div>
+            <div class="route-divider"><span>ANÁLISE A → B</span><i>→</i></div>
+            <div class="endpoint-block"><div class="endpoint-title cyan-title"><span>B</span><div><strong id="pointBLabel">Ponto B</strong><small>Amplificador de recepção</small></div></div><label><span>DATA OUT · PONTO B</span><input id="mDataOut" type="text" inputmode="decimal" placeholder="— dBm"></label><small class="shared-reading">RX IN B informado na etapa 04.</small></div>
+          </div>
+        </section>
+
+        <div class="form-actions"><button type="button" class="primary" id="saveBtn">Salvar análise neste dispositivo</button><button type="reset" class="secondary">Limpar medições</button></div><p class="inline-feedback" id="saveFeedback" aria-live="polite"></p>
+      </form>
+
+      <aside class="result-column">
+        <section class="panel live-panel">
+          <div class="live-head"><div><small>RESULTADO AO VIVO</small><h2 id="resultTitle">Referência do trecho</h2></div><div class="channel-badge"><strong id="channelCount">8</strong><span>de 40 canais</span></div></div>
+          <div class="kpis">
+            <div><span>Margem de carregamento</span><strong id="loadingMargin">6,99 dB</strong><small>redução sobre carga máxima</small></div>
+            <div><span>Atenuação esperada da fibra</span><strong id="totalLoss">18,00 dB</strong><small id="lossBreakdown">distância × 0,30 dB/km</small></div>
+          </div>
+
+          <div class="optical-path" aria-label="Fluxo óptico calculado do Ponto A para o Ponto B">
+            <div class="port"><small>DATA IN · A</small><strong id="dataInRange">−13,0 a −6,0</strong><span>dBm total · faixa TX</span><em id="sDataIn"></em></div>
+            <div class="path-arrow"><span>TX</span>→</div>
+            <div class="port orange"><small>LINE OUT · A</small><strong id="lineOutTarget">+9,0</strong><span>dBm total · alvo</span><em id="sLineOut"></em></div>
+            <div class="fiber-line"><span id="fiberLabel">60 km · −18,6 dB</span>→</div>
+            <div class="port cyan-port"><small>LINE IN · B</small><strong id="lineInTarget">−9,0</strong><span>dBm total · previsão conservadora</span><em id="sLineIn"></em></div>
+            <div class="path-arrow"><span>RX</span>→</div>
+            <div class="port"><small>DATA OUT · B</small><strong id="dataOutTarget">+9,0</strong><span>dBm total · alvo</span><em id="sDataOut"></em></div>
+          </div>
+
+          <div class="diagnostic-grid">
+            <article id="spanLossCard"><small>PERDA TOTAL A → B</small><strong id="actualSpanLoss">Aguardando medições</strong><span id="spanLossStatus">Informe LINE OUT A e LINE IN B</span></article>
+            <article><small>DIFERENÇA DA REFERÊNCIA</small><strong id="excessLoss">—</strong><span id="excessLossStatus">Referência: distância × 0,30</span></article>
+            <article><small>ATENUAÇÃO EFETIVA</small><strong id="effectiveAttenuation">—</strong><span>Perda real ÷ distância</span></article>
+            <article><small>DESVIOS DE SAÍDA</small><strong id="outputDeviations">—</strong><span id="outputDeviationStatus">LINE OUT A / DATA OUT B</span></article>
+          </div>
+
+          <section class="capacity-summary" id="capacityState" aria-live="polite">
+            <div><small>CAPACIDADE ESTIMADA POR POTÊNCIA</small><strong id="spanSupported">Aguardando medições</strong><span id="capacityHint">Informe LINE OUT A e DATA OUT B.</span></div>
+            <dl><dt>Limite estimado pelo TX</dt><dd id="txSupported">—</dd><dt>Limite estimado pelo RX</dt><dd id="rxSupported">—</dd></dl>
+            <p>Estimativa baseada na potência média atual por canal e no Pout de referência. Não substitui análise de OSNR, tilt, dispersão ou desempenho individual dos canais.</p>
+          </section>
+
+          <div class="checks">
+            <article><div><span id="txCheckDot" class="mini-dot"></span><h3>Booster / TX · Ponto A</h3></div><dl><dt>Faixa operacional recomendada</dt><dd id="txGainRange"></dd><dt>Ganho medido</dt><dd id="txGainRequired"></dd><dt>Potência/canal de referência</dt><dd id="txPerChannel"></dd><dt>Potência/canal medida</dt><dd id="txPerChannelMeasured"></dd></dl></article>
+            <article><div><span id="rxCheckDot" class="mini-dot"></span><h3>Pré / RX · Ponto B</h3></div><dl><dt>Faixa operacional recomendada</dt><dd id="rxGainRange"></dd><dt>Ganho teórico necessário</dt><dd id="rxGainRequired"></dd><dt>Ganho para o alvo, usando LINE IN medida</dt><dd id="rxGainFromMeasured"></dd><dt>Ganho medido</dt><dd id="rxGainMeasured"></dd><dt>Potência/canal de referência</dt><dd id="rxPerChannel"></dd><dt>Potência/canal medida</dt><dd id="rxPerChannelMeasured"></dd></dl></article>
+          </div>
+          <div class="diagnostic-summary" id="diagnosticSummary">Preencha as quatro medições para obter o diagnóstico completo.</div>
+          <div class="span-rule"><strong>Uso por trecho:</strong> em um DWDM com vários POPs, salve A→B, depois B→C, e assim por diante.</div>
+          <div class="warning" id="modelWarning" hidden></div>
+        </section>
+
+        <details class="panel method"><summary>Critérios e fórmulas usados</summary><div><p><strong>Potência total:</strong> mantém a referência por canal do cenário de 40 canais e aplica <code>10 × log₁₀(canais ativos / 40)</code>.</p><p><strong>Potência média por canal medida:</strong> potência total medida − <code>10 × log₁₀(canais ativos)</code>. É uma média estimada e pressupõe canais equilibrados.</p><p><strong>Referência simplificada da fibra:</strong> distância entre A e B × 0,30 dB/km. Como 0,30 dB/km é uma referência conservadora, uma perda medida menor representa margem favorável.</p><p><strong>Perda nos dois sentidos:</strong> A → B = TX OUT A − RX IN B; B → A = TX OUT B − RX IN A. A diferença exibida é perda medida − perda esperada: valor negativo significa margem favorável.</p><p><strong>Classificação da fibra:</strong> até 0,50 dB acima da referência é compatível; de 0,51 a 1,50 dB gera atenção; acima de 1,50 dB exige revisão. A perda total pode incluir conectores, DIO, MUX/DEMUX, filtros e outros passivos.</p><p><strong>LINE IN:</strong> ficar acima da previsão conservadora não é falha por si só. O nível só é crítico quando sai do limite físico do RX ou exige ganho fora da faixa operacional para alcançar o alvo.</p><p><strong>Ganhos:</strong> TX = TX OUT A − DATA IN A; RX = DATA OUT B − RX IN B. A faixa operacional recomendada vem da planilha de implantação; a faixa física mais ampla vem do manual.</p><p><strong>Alvos de potência:</strong> até ±0,50 dB é compatível; entre 0,51 e 1,50 dB gera atenção; acima disso exige revisão.</p><p class="caution">“Perda compatível” descreve somente o balanço de potência e não substitui OTDR, análise de reflexão, OSNR ou avaliação individual dos canais.</p></div></details>
+      </aside>
+    </div>
+
+    <section class="history panel">
+      <div class="history-head"><div><small>REGISTROS LOCAIS</small><h2>Histórico de análises</h2></div><div class="history-actions"><button id="printBtn" class="secondary">Gerar relatório PDF</button><button id="exportBtn" class="secondary">Exportar CSV</button><button id="backupBtn" class="secondary">Backup JSON</button><button id="importBtn" class="secondary">Importar backup</button><input id="importFile" type="file" accept="application/json,.json" hidden></div></div><p class="inline-feedback" id="historyFeedback" aria-live="polite"></p>
+      <div id="historyEmpty" class="empty">Nenhuma análise salva neste dispositivo.</div>
+      <div class="table-wrap"><table id="historyTable" hidden><thead><tr><th>Data</th><th>Modo</th><th>Trecho</th><th>Canais</th><th>Fibra</th><th>TX</th><th>RX</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </main>
+  <section id="printReport" class="print-report" aria-hidden="true"></section>
+  <footer>DWDM FieldCalc v<span id="appVersion"></span> · Planilha Padtec V1.2 + Manual TM.LP64.2023.02.POR.V1 · referência de fibra 0,30 dB/km</footer>
+  <script src="app.js"></script>
+</body>
+</html>
